@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Russian Hybrid Warfare Events in Europe</title>
+  <!-- Leaflet 1.9.4 — local copy (no CDN required) -->
+  <link rel="stylesheet" href="leaflet.css">
+  <style>
+    /* ================================================
+       BASE RESET & LAYOUT
+    ================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+    body, html {
+      margin: 0; padding: 0; height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Full-viewport map */
+    #map { width: 100vw; height: 100vh; }
+
+    /* ================================================
+       INFO PANEL — right sidebar on desktop
+    ================================================ */
+    #info-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: 360px; height: 100vh;
+      background: #fff;
+      box-shadow: -3px 0 16px rgba(0,0,0,0.3);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #info-panel.hidden { display: none; }
+
+    #panel-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 1rem 1.1rem 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+    #panel-header-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #aaa;
+      padding-top: 0.25rem;
+    }
+    #close-panel {
+      background: none; border: none;
+      color: #fff; font-size: 1.7rem; line-height: 1;
+      cursor: pointer; padding: 0; margin-left: 1rem;
+      opacity: 0.8; flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    #close-panel:hover { opacity: 1; }
+
+    #info-content {
+      padding: 1.2rem;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+    #info-content h2 {
+      font-size: 1.05rem; font-weight: 700;
+      color: #1a1a2e; margin: 0 0 0.7rem;
+      line-height: 1.35;
+    }
+
+    /* Category badges */
+    .badge {
+      display: inline-block;
+      padding: 0.22em 0.75em;
+      border-radius: 10px;
+      font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 0.8rem;
+    }
+    .badge-kinetic { background: #e74c3c; color: #fff; }
+    .badge-cyber   { background: #e67e22; color: #fff; }
+    .badge-gps     { background: #f1c40f; color: #333; }
+    .badge-fridge  { background: #3498db; color: #fff; }
+    .badge-murder  { background: #8e44ad; color: #fff; }
+
+    .event-date { font-size: 0.88rem; color: #555; margin: 0 0 0.8rem; }
+    .event-date strong { color: #333; }
+    .event-desc { font-size: 0.9rem; color: #333; line-height: 1.65; margin: 0; }
+
+    /* ================================================
+       LEAFLET CUSTOM CONTROL STYLES
+    ================================================ */
+
+    /* Title overlay — top-left */
+    .map-title {
+      background: rgba(10,18,40,0.88);
+      color: #fff;
+      padding: 0.65rem 0.95rem;
+      border-radius: 4px;
+      max-width: 285px;
+      pointer-events: none;
+    }
+    .map-title-h1 {
+      font-size: 0.85rem; font-weight: 700;
+      line-height: 1.3; margin-bottom: 0.18rem;
+    }
+    .map-title-sub { font-size: 0.68rem; color: rgba(255,255,255,0.72); }
+
+    /* Year filter — top-right */
+    .map-filter {
+      background: #fff;
+      border-radius: 4px;
+      padding: 0.7rem 1rem 0.6rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.28);
+      min-width: 130px;
+    }
+    .filter-title {
+      font-size: 0.72rem; font-weight: 700;
+      color: #333; text-transform: uppercase;
+      letter-spacing: 0.07em; margin-bottom: 0.48rem;
+    }
+    .filter-label {
+      display: flex; align-items: center; gap: 0.42rem;
+      font-size: 0.85rem; color: #444;
+      cursor: pointer; padding: 0.08rem 0;
+      user-select: none;
+    }
+    .filter-label input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
+
+    /* Legend — bottom-right */
+    .map-legend {
+      background: #fff;
+      border-radius: 4px;
+      padding: 0.65rem 0.9rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.28);
+    }
+    .map-legend strong {
+      font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #555;
+      display: block; margin-bottom: 0.48rem;
+    }
+    .legend-item {
+      display: flex; align-items: center;
+      gap: 0.5rem; font-size: 0.8rem; color: #444;
+      margin: 0.2rem 0;
+    }
+    .legend-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+
+    /* ================================================
+       DISCLAIMER BAR — bottom
+    ================================================ */
+    #disclaimer {
+      position: fixed; bottom: 0; left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.72);
+      color: #ccc; font-size: 0.68rem;
+      padding: 0.35rem 1rem;
+      z-index: 998; text-align: center;
+      pointer-events: none;
+    }
+
+    /* ================================================
+       MOBILE — bottom sheet (max-width 600px)
+    ================================================ */
+    @media (max-width: 600px) {
+      #info-panel {
+        top: auto; bottom: 0; left: 0; right: 0;
+        width: 100%; height: 42vh;
+        box-shadow: 0 -3px 16px rgba(0,0,0,0.3);
+      }
+      .map-title { max-width: 165px; }
+      .map-title-h1 { font-size: 0.72rem; }
+      #disclaimer { font-size: 0.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Full-screen Leaflet map -->
+  <div id="map"></div>
+
+  <!-- Info panel: hidden until a marker is clicked -->
+  <div id="info-panel" class="hidden">
+    <div id="panel-header">
+      <span id="panel-header-label">Event Details</span>
+      <button id="close-panel" title="Close panel">&times;</button>
+    </div>
+    <div id="info-content"></div>
+  </div>
+
+  <!-- Disclaimer bar -->
+  <div id="disclaimer">
+    Events compiled from public sources: NATO, Reuters, BBC, The Guardian, Politico, ENISA,
+    national government statements. Some attribution is disputed or under active investigation.
+  </div>
+
+  <!-- Leaflet 1.9.4 JS — local copy (no CDN required) -->
+  <script src="leaflet.js"></script>
+
+  <script>
+  /* =================================================================
+     RUSSIAN HYBRID WARFARE EVENTS MAP
+     Single-file, Leaflet 1.9.4 + OpenStreetMap, no backend required.
+     All event data is hardcoded below.
+  ================================================================= */
+
+  /* ── Category colours & labels ─────────────────────────────────── */
+  const CATEGORY_COLORS = {
+    kinetic: '#e74c3c',  // Red    — kinetic / physical
+    cyber:   '#e67e22',  // Orange — cyberattacks
+    gps:     '#f1c40f',  // Yellow — GPS jamming & aviation disruption
+    fridge:  '#3498db',  // Blue   — refrigeration / freezer hacks
+    murder:  '#8e44ad'   // Purple — assassinations & targeted killings
+  };
+
+  const CATEGORY_LABELS = {
+    kinetic: 'Kinetic / Physical',
+    cyber:   'Cyberattack',
+    gps:     'GPS / Flight Disruption',
+    fridge:  'Fridge / Freezer Hack',
+    murder:  'Assassination / Targeted Killing'
+  };
+
+  /* ── Event data ──────────────────────────────────────────────────
+     Each event: { id, name, date, years[], category, lat, lng,
+                   shortDesc, fullDesc }
+
+     YEAR FILTER NOTE: Checkboxes cover 2024, 2025, 2026 only.
+     Events whose years[] spans earlier periods (e.g. gps-kaliningrad
+     has [2022,2023,2024,2025]) remain visible whenever ANY of their
+     years matches a checked box.  Unchecking all boxes hides
+     every marker correctly.
+
+     CO-LOCATION: France events (fridge-france, bomb-france-flight,
+     cyber-france-gru, cyber-france-campaign) have been pre-spread
+     by ~0.3° lng so they are individually clickable.  The offset
+     algorithm below provides an additional safety net for any
+     remaining cases rounded to the same 1-dp grid cell.
+  ─────────────────────────────────────────────────────────────── */
+  const EVENTS = [
+
+    /* ═══════════════════════════════════════════════════════════
+       GPS / FLIGHT DISRUPTIONS  (yellow, category: 'gps')
+    ═══════════════════════════════════════════════════════════ */
+
+    {
+      id: 'gps-kaliningrad',
+      name: 'GPS Jamming \u2014 Baltic (Kaliningrad)',
+      date: '2022\u20132025 (ongoing)',
+      years: [2022, 2023, 2024, 2025],
+      category: 'gps',
+      lat: 54.7, lng: 20.5,
+      shortDesc: 'Ongoing GPS/GNSS jamming from Kaliningrad. Lithuania 1,000+ episodes/month in 2025.',
+      fullDesc: 'Russia has conducted systematic GPS/GNSS jamming from the Kaliningrad exclave since at least 2022, dramatically intensifying from August 2024. Lithuania recorded over 1,000 jamming episodes per month in 2025, severely affecting civil and military aviation in the Baltic region. The jamming is attributed to Russian military installations in Kaliningrad and near the Estonian border, forcing aviation authorities to implement mitigation procedures and reroute affected flights.'
+    },
+
+    {
+      id: 'gps-tartu',
+      name: 'Finnair Suspends Tartu Flights (GPS Jamming)',
+      date: 'April 2024',
+      years: [2024],
+      category: 'gps',
+      lat: 58.38, lng: 26.72,
+      shortDesc: 'Finnair suspended all flights to Tartu, Estonia citing GPS interference risk.',
+      fullDesc: 'In April 2024, Finnair suspended all flights to Tartu Airport in Estonia, citing GPS jamming that made safe landings impossible. The interference was attributed to Russian signals emanating from near the Estonian border. The suspension demonstrated the real-world impact of GPS jamming on civil aviation, forcing a major European carrier to cancel an entire route. Tartu\'s short runway and instrument-approach requirements made it particularly vulnerable to navigation system interference.'
+    },
+
+    /* ── Coordinated hoax bomb threats, Nov 2\u20137 2026 ──────────
+       10 countries, 34+ flights disrupted, attributed to Russia.
+       Coordinates are pre-spread to keep markers individually clickable.
+    ───────────────────────────────────────────────────────────── */
+
+    {
+      id: 'bomb-italy',
+      name: 'Hoax Bomb Threat \u2014 Italy (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 41.9, lng: 12.5,
+      shortDesc: 'Part of coordinated 10-country hoax bomb campaign against European aviation. Russia attributed.',
+      fullDesc: 'Italian aviation was among ten European targets in the coordinated hoax bomb-threat campaign of November 2\u20137, 2026. The campaign simultaneously targeted flights in Italy, France, Spain, Poland, Denmark, Bulgaria, Romania, Ireland, Netherlands, and Germany, disrupting 34+ flights in total. European intelligence agencies attributed the operation to Russian state actors conducting a hybrid warfare campaign against European transportation infrastructure. Emergency protocols were activated at Italian airports, causing significant disruption to civil aviation.'
+    },
+
+    {
+      id: 'bomb-france-flight',
+      name: 'Hoax Bomb Threat \u2014 France (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 48.9, lng: 2.5,
+      shortDesc: 'Part of coordinated 10-country hoax bomb campaign against European aviation. Russia attributed.',
+      fullDesc: 'French aviation was targeted in the coordinated European bomb-threat campaign of November 2\u20137, 2026, simultaneously with nine other EU countries. Telegram channels linked to Russian state actors disseminated the threats. French authorities activated emergency response protocols and coordinated with Eurocontrol and European partners. The near-simultaneous targeting across a dozen countries demonstrated state-level coordination characteristic of Russian hybrid warfare operations against transportation infrastructure.'
+    },
+
+    {
+      id: 'bomb-spain',
+      name: 'Hoax Bomb Threat \u2014 Spain (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 40.4, lng: -3.4,
+      shortDesc: 'Part of coordinated 10-country hoax bomb campaign against European aviation. Russia attributed.',
+      fullDesc: 'Spain was one of ten European countries targeted in the coordinated hoax bomb-threat campaign of November 2\u20137, 2026, attributed by European intelligence agencies to Russia. Spanish airports and airlines received simultaneous threats alongside counterparts in Italy, France, Poland, Denmark, Bulgaria, Romania, Ireland, Netherlands, and Germany. The cross-border coordination affecting 34+ flights pointed to state-level resources consistent with documented Russian hybrid warfare operations.'
+    },
+
+    {
+      id: 'bomb-poland',
+      name: 'Warsaw Airport Closed \u2014 Hoax Bomb',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 52.2, lng: 21.0,
+      shortDesc: 'Warsaw Chopin Airport closed. Part of 10-country European bomb threat wave attributed to Russia.',
+      fullDesc: 'Warsaw Chopin Airport was temporarily closed following a hoax bomb threat as part of the coordinated European aviation disruption campaign of November 2\u20137, 2026, attributed by intelligence agencies to Russian state actors. The closure of Warsaw \u2014 a major Central European hub \u2014 caused significant cascading disruption and triggered NATO monitoring procedures. Poland was among ten countries targeted simultaneously in an operation designed to paralyse European air travel.'
+    },
+
+    {
+      id: 'bomb-denmark',
+      name: 'Hoax Bomb Threat \u2014 Denmark (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 55.7, lng: 12.6,
+      shortDesc: 'Part of coordinated 10-country hoax bomb campaign against European aviation. Russia attributed.',
+      fullDesc: 'Denmark was among ten European nations simultaneously targeted in the coordinated hoax bomb-threat campaign of November 2\u20137, 2026, attributed to Russia. Danish aviation authorities activated emergency response protocols as flights received threats alongside incidents in nine other EU member states. The campaign, which disrupted 34+ flights, was assessed by European intelligence agencies as a deliberate state-sponsored operation targeting European critical transportation infrastructure.'
+    },
+
+    {
+      id: 'bomb-bulgaria',
+      name: 'Sofia \u2014 3 Ryanair Emergency Landings',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 42.7, lng: 23.3,
+      shortDesc: 'Sofia received 3 simultaneous Ryanair emergency landings. Part of 10-country European bomb campaign.',
+      fullDesc: 'Sofia Airport received three Ryanair aircraft making simultaneous emergency landings during the coordinated European hoax bomb-threat campaign of November 2\u20137, 2026. Bulgaria was among ten countries targeted simultaneously in what intelligence agencies attributed to Russian state actors. The three concurrent emergency diversions to Sofia strained airport emergency resources and represented one of the most operationally complex responses to the Russia-attributed campaign.'
+    },
+
+    {
+      id: 'bomb-romania-flight',
+      name: 'Hoax Bomb Threat \u2014 Romania (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 44.4, lng: 26.4,
+      shortDesc: 'Part of coordinated 10-country hoax bomb campaign against European aviation. Russia attributed.',
+      fullDesc: 'Romania was targeted in the coordinated European hoax bomb-threat campaign of November 2\u20137, 2026, with Romanian aviation receiving simultaneous threats alongside counterparts in nine other European countries. European intelligence agencies attributed the campaign to Russia as part of an escalating hybrid warfare strategy against European transportation infrastructure. Romanian aviation authorities coordinated with Eurocontrol and NATO counterparts in managing the multi-country response.'
+    },
+
+    {
+      id: 'bomb-ireland',
+      name: 'Aer Lingus \u2014 Hoax Bomb Threat',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 53.3, lng: -6.3,
+      shortDesc: 'Aer Lingus targeted in coordinated 10-country hoax bomb campaign attributed to Russia.',
+      fullDesc: 'Aer Lingus was among European carriers targeted in the coordinated hoax bomb-threat campaign of November 2\u20137, 2026, simultaneously with airlines in nine other EU countries. The campaign, affecting 34+ flights and attributed by intelligence agencies to Russian state actors, targeted Ireland alongside Italy, France, Spain, Poland, Denmark, Bulgaria, Romania, Netherlands, and Germany. The coordinated cross-border simultaneous timing demonstrated state-level planning characteristic of documented Russian hybrid warfare.'
+    },
+
+    {
+      id: 'bomb-netherlands-flight',
+      name: 'Hoax Bomb Threat \u2014 Netherlands (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 52.4, lng: 4.6,
+      shortDesc: 'Schiphol and Dutch aviation targeted in coordinated 10-country bomb threat wave. Russia attributed.',
+      fullDesc: 'The Netherlands was among ten European countries simultaneously targeted in the hoax bomb-threat campaign of November 2\u20137, 2026, attributed to Russia by intelligence agencies. Amsterdam Schiphol \u2014 one of Europe\'s busiest aviation hubs \u2014 and Dutch airline flights received threats in coordination with incidents across nine other EU member states. The campaign, disrupting 34+ flights across the continent, was consistent with Russian hybrid warfare strategy targeting European critical transportation infrastructure.'
+    },
+
+    {
+      id: 'bomb-germany-flight',
+      name: 'Hoax Bomb Threat \u2014 Germany (Aviation)',
+      date: 'Nov 2\u20137, 2026',
+      years: [2026],
+      category: 'gps',
+      lat: 52.5, lng: 13.1,
+      shortDesc: 'German airports targeted in coordinated 10-country hoax bomb threat wave. Russia attributed.',
+      fullDesc: 'German aviation was among ten European targets in the coordinated hoax bomb-threat campaign of November 2\u20137, 2026. German airports and airlines received simultaneous threats as part of a campaign affecting 34+ flights across the continent, attributed by intelligence agencies to Russian state actors. The simultaneous targeting of major European aviation hubs \u2014 Germany, France, Spain, Poland \u2014 prompted a coordinated joint response through Eurocontrol and underscored the scale of the operation as deliberate Russian hybrid warfare.'
+    },
+
+    /* ═══════════════════════════════════════════════════════════
+       FRIDGE / FREEZER HACKS  (blue, category: 'fridge')
+    ═══════════════════════════════════════════════════════════ */
+
+    {
+      id: 'fridge-france',
+      name: 'Supermarket Freezer Hack \u2014 France (Wave 1)',
+      date: 'October 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 48.9, lng: 2.0,
+      shortDesc: 'French supermarket freezers hacked to 50\u00b0C. Millions EUR food destroyed. Russia suspected.',
+      fullDesc: 'In approximately October 2026, French supermarket refrigeration systems were hacked, causing freezer temperatures to spike to 50\u00b0C and destroying millions of euros worth of food. Russia was suspected as the perpetrator, as reported by Politico, The Guardian, and CNBC. This first French wave preceded the larger coordinated nine-country attack of November 2, 2026, establishing a pattern of escalating Russian hybrid operations against European food supply infrastructure.'
+    },
+
+    {
+      id: 'fridge-bloodbank',
+      name: 'Blood-Bank Refrigeration Hack \u2014 France',
+      date: 'November 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 47.5, lng: 1.5,
+      shortDesc: 'French blood-bank refrigeration systems targeted, endangering medical supplies. Russia suspected.',
+      fullDesc: 'In November 2026, French blood-bank refrigeration systems were targeted in a cyberattack suspected to be linked to Russia. The attack endangered stored blood supplies, escalating the refrigeration hack campaign from commercial food storage into critical medical infrastructure. The targeting of blood banks \u2014 which require precise temperature control \u2014 represented a deliberate escalation designed to endanger human lives and undermine confidence in French public health infrastructure.'
+    },
+
+    /* ── Coordinated 9-country attack, Nov 2, 2026 ──────────
+       Belgium, Luxembourg, Sweden, Germany, Ireland,
+       Netherlands, Estonia, Finland, Romania \u2014 same day.
+    ─────────────────────────────────────────────────────── */
+
+    {
+      id: 'fridge-belgium',
+      name: 'Supermarket Freezer Hack \u2014 Belgium',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 50.8, lng: 4.4,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Belgian supermarket refrigeration systems were hacked on November 2, 2026, as part of a coordinated attack simultaneously targeting nine European countries. Freezer temperatures were forced to 50\u00b0C, destroying millions of euros worth of perishable food. Belgium was targeted alongside Luxembourg, Sweden, Germany, Ireland, Netherlands, Estonia, Finland, and Romania in a simultaneous operation indicating sophisticated state-level resources. Russia was strongly suspected as the perpetrator, consistent with an ongoing campaign of European infrastructure sabotage.'
+    },
+
+    {
+      id: 'fridge-luxembourg',
+      name: 'Supermarket Freezer Hack \u2014 Luxembourg',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 49.6, lng: 6.1,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Luxembourg was among nine European countries simultaneously targeted in the coordinated supermarket refrigeration hack of November 2, 2026. Freezer temperatures were forced to 50\u00b0C, destroying food stocks across affected stores. The attack on Luxembourg \u2014 seat of EU institutions and European Court of Justice \u2014 alongside eight other European nations demonstrated the geopolitical targeting logic of the Russia-suspected operation, alongside Belgium, Sweden, Germany, Ireland, Netherlands, Estonia, Finland, and Romania.'
+    },
+
+    {
+      id: 'fridge-sweden',
+      name: 'Supermarket Freezer Hack \u2014 Sweden',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 59.3, lng: 18.1,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Swedish supermarket refrigeration systems were targeted on November 2, 2026, in the coordinated nine-country freezer hack attributed to Russia. Temperatures spiked to 50\u00b0C, destroying perishable food stocks. Sweden, which joined NATO in March 2024 and shares a Baltic Sea border with Russia, was a significant target in the coordinated attack alongside Belgium, Luxembourg, Germany, Ireland, Netherlands, Estonia, Finland, and Romania \u2014 all NATO members or EU states.'
+    },
+
+    {
+      id: 'fridge-germany',
+      name: 'Supermarket Freezer Hack \u2014 Germany',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 51.2, lng: 10.4,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'German supermarket refrigeration systems were hacked on November 2, 2026, as part of the nine-country coordinated attack attributed to Russia. Freezer temperatures were forced to 50\u00b0C, causing widespread food spoilage. Germany \u2014 Europe\'s largest economy and a key NATO contributor \u2014 was targeted alongside eight other European nations. German security agencies confirmed the attack and attributed it to a state-level threat actor with resources and coordination consistent with Russian intelligence services.'
+    },
+
+    {
+      id: 'fridge-ireland',
+      name: 'Supermarket Freezer Hack \u2014 Ireland',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 53.3, lng: -8.2,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Ireland was targeted in the coordinated nine-country supermarket refrigeration hack of November 2, 2026, attributed to Russia. Freezer temperatures were forced to 50\u00b0C, causing significant food losses across affected stores. The attack on Ireland \u2014 at the western edge of the targeted countries \u2014 alongside Belgium, Luxembourg, Sweden, Germany, Netherlands, Estonia, Finland, and Romania demonstrated the geographic breadth of the Russia-suspected operation spanning the entire European continent.'
+    },
+
+    {
+      id: 'fridge-netherlands',
+      name: 'Supermarket Freezer Hack \u2014 Netherlands',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 52.4, lng: 5.3,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Dutch supermarket refrigeration systems were among nine European countries simultaneously targeted in the November 2, 2026 coordinated hack attributed to Russia. Freezer temperatures were pushed to 50\u00b0C, destroying perishable goods. The Netherlands \u2014 a major European logistics and food distribution hub \u2014 was a strategically significant target in the operation alongside Belgium, Luxembourg, Sweden, Germany, Ireland, Estonia, Finland, and Romania.'
+    },
+
+    {
+      id: 'fridge-estonia',
+      name: 'Supermarket Freezer Hack \u2014 Estonia',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 59.4, lng: 24.8,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Estonia was targeted in the coordinated nine-country supermarket refrigeration hack of November 2, 2026, attributed to Russia. For Estonia \u2014 which shares a border with Russia and has been a consistent target of Russian hybrid operations since 2007 \u2014 the attack represented a continuation of long-running Russian operations against Estonian infrastructure. Freezer temperatures were pushed to 50\u00b0C alongside simultaneous attacks in Belgium, Luxembourg, Sweden, Germany, Ireland, Netherlands, Finland, and Romania.'
+    },
+
+    {
+      id: 'fridge-finland',
+      name: 'Supermarket Freezer Hack \u2014 Finland',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 60.2, lng: 24.9,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Finnish supermarket refrigeration systems were hacked on November 2, 2026, as part of the nine-country coordinated attack attributed to Russia. Finland \u2014 which joined NATO in April 2023 and shares a 1,340 km land border with Russia \u2014 was a significant target alongside Belgium, Luxembourg, Sweden, Germany, Ireland, Netherlands, Estonia, and Romania. Temperatures were forced to 50\u00b0C, destroying cold-chain food stocks. Finnish authorities attributed the attack to a foreign state actor.'
+    },
+
+    {
+      id: 'fridge-romania',
+      name: 'Supermarket Freezer Hack \u2014 Romania',
+      date: 'Nov 2, 2026',
+      years: [2026],
+      category: 'fridge',
+      lat: 45.9, lng: 25.0,
+      shortDesc: 'Part of coordinated 9-country supermarket freezer hack. Temperatures to 50\u00b0C. Russia suspected.',
+      fullDesc: 'Romania was among nine European countries targeted in the coordinated supermarket refrigeration hack of November 2, 2026, attributed to Russia. Freezer systems were hacked to 50\u00b0C, destroying perishable goods. Romania \u2014 a NATO member state bordering Ukraine and already subject to repeated Russian drone airspace violations \u2014 was targeted simultaneously with Belgium, Luxembourg, Sweden, Germany, Ireland, Netherlands, Estonia, and Finland in the pan-European operation.'
+    },
+
+    /* ═══════════════════════════════════════════════════════════
+       KINETIC / PHYSICAL  (red, category: 'kinetic')
+       Subcategories: cable sabotage, airspace violations,
+       rail incidents, power grid
+    ═══════════════════════════════════════════════════════════ */
+
+    /* ── Undersea cable sabotage ──────────────────────── */
+
+    {
+      id: 'cable-bcs-clio',
+      name: 'BCS East-West & C-Lion1 Cables Cut',
+      date: 'Nov 17\u201318, 2024',
+      years: [2024],
+      category: 'kinetic',
+      lat: 59.5, lng: 19.5,
+      shortDesc: 'Two Finland-Germany undersea cables severed in Baltic. Chinese-flagged Yi Peng 3 (Russian crew) suspected.',
+      fullDesc: 'On November 17\u201318, 2024, both the BCS East-West Interlink cable and the C-Lion1 cable running between Finland and Germany through the Baltic Sea were simultaneously severed. The Chinese-flagged vessel Yi Peng 3, reportedly crewed partly by Russian nationals, was suspected. The ship was subsequently held for investigation in Swedish-Danish waters. The simultaneous cutting of two separate cables strongly indicated deliberate sabotage and prompted calls for increased NATO monitoring of Baltic Sea undersea infrastructure.'
+    },
+
+    {
+      id: 'cable-estlink2',
+      name: 'Estlink 2 Power Cable Severed',
+      date: 'Dec 25, 2024',
+      years: [2024],
+      category: 'kinetic',
+      lat: 59.7, lng: 23.5,
+      shortDesc: 'Estonia-Finland submarine power cable severed on Christmas Day. 60-mile anchor drag mark found.',
+      fullDesc: 'The Estlink 2 submarine high-voltage power cable linking Estonia and Finland was severed on Christmas Day, December 25, 2024. A 60-mile anchor drag mark on the seabed indicated that an anchor had been deliberately dragged to sever the cable \u2014 the same technique as subsequent incidents. A shadow fleet vessel was linked to the incident. The cable had carried up to 650 MW of electricity between the Baltic states and Finland, making its Christmas Day severing a significant disruption to Baltic energy security during the winter heating season.'
+    },
+
+    {
+      id: 'cable-dec2025',
+      name: 'Submarine Cable Cut \u2014 Estonia EEZ',
+      date: 'Dec 31, 2025',
+      years: [2025],
+      category: 'kinetic',
+      lat: 59.3, lng: 24.2,
+      shortDesc: 'Cable cut in Estonia EEZ. Finnish authorities detained suspect vessel after 10 km anchor drag.',
+      fullDesc: 'On December 31, 2025, a submarine cable was cut in Estonia\'s Exclusive Economic Zone. Finnish authorities detained a suspect vessel, which had left a 10 km anchor drag mark on the seabed \u2014 a clear signature of deliberate sabotage consistent with the Estlink 2 technique. This was at least the sixth suspected Baltic Sea infrastructure sabotage since 2022, confirming a sustained pattern of Russian hybrid warfare targeting European undersea cable and energy infrastructure.'
+    },
+
+    /* ── NATO airspace violations ──────────────────────── */
+
+    {
+      id: 'drone-poland',
+      name: 'Russian Drones Violate Polish Airspace \u2014 30+',
+      date: 'Sep 9\u201310, 2025',
+      years: [2025],
+      category: 'kinetic',
+      lat: 52.1, lng: 23.5,
+      shortDesc: '30+ Russian military drones violated Polish airspace. NATO QRA triggered, Operation Eastern Sentry launched.',
+      fullDesc: 'On September 9\u201310, 2025, over 30 Russian military drones violated Polish airspace in the most significant single drone incursion into NATO territory on record. NATO Quick Reaction Alert fighters were scrambled and Operation Eastern Sentry was launched in response. The incident prompted Poland to request additional NATO air defense deployments. The scale of the incursion was assessed as a deliberate test of NATO Article 5 response mechanisms and Polish air defense procedures.'
+    },
+
+    {
+      id: 'drone-romania',
+      name: 'Russian Drone Violations \u2014 Romania (70+)',
+      date: '2024\u20132026 (ongoing)',
+      years: [2024, 2025, 2026],
+      category: 'kinetic',
+      lat: 45.2, lng: 29.0,
+      shortDesc: 'Romania recorded 70+ drone violations in 2024\u20132025, 23 confirmed by Aug 21, 2026.',
+      fullDesc: 'Romania\'s defense ministry documented over 70 Russian drone incursions into its airspace between 2024 and 2025, rising to 23 confirmed violations by August 21, 2026. The drones \u2014 largely remnants from Russian strikes on neighboring Ukraine \u2014 violated Romanian NATO airspace repeatedly, testing allied resolve and demonstrating deliberate probing of NATO\'s eastern flank. Each confirmed violation triggered diplomatic protests and NATO enhanced monitoring procedures.'
+    },
+
+    {
+      id: 'drone-baltics',
+      name: 'Russian Drone Violations \u2014 Baltic States (LT/LV)',
+      date: '2024\u20132025',
+      years: [2024, 2025],
+      category: 'kinetic',
+      lat: 55.7, lng: 24.1,
+      shortDesc: 'Lithuania and Latvia airspace violated by Russian drones. Part of 18 confirmed NATO violations in 2025.',
+      fullDesc: 'Lithuania and Latvia experienced multiple Russian drone violations of their airspace in 2024\u20132025, forming part of 18 confirmed NATO airspace violations in 2025 \u2014 three times the 2024 rate. The violations represented a systematic escalation of Russian hybrid warfare pressure on Baltic NATO allies and accelerated Baltic air defense procurement programs, including short-range and medium-range missile systems deployed under NATO enhanced forward presence arrangements.'
+    },
+
+    {
+      id: 'drone-nordic',
+      name: 'Russian Drone Violations \u2014 Nordic NATO (FI/SE/NO)',
+      date: '2024\u20132025',
+      years: [2024, 2025],
+      category: 'kinetic',
+      lat: 67.0, lng: 24.0,
+      shortDesc: 'Finland, Sweden, Norway experienced Russian drone violations after FI/SE joined NATO.',
+      fullDesc: 'Following Finland\'s NATO accession in April 2023 and Sweden\'s in March 2024, all three Nordic states experienced Russian drone violations of their airspace in 2024\u20132025. The violations were seen as deliberate probing of the newly extended NATO border across the 1,340 km Finnish-Russian frontier and the high Arctic. Norway, Finland, and Sweden jointly escalated NATO monitoring and strengthened integrated air defense cooperation in direct response to the recurring incursions.'
+    },
+
+    /* ── Rail infrastructure ─────────────────────────── */
+
+    {
+      id: 'spain-adamuz',
+      name: 'Adamuz Rail Collision \u2014 46 Dead',
+      date: 'Jan 18, 2026',
+      years: [2026],
+      category: 'kinetic',
+      lat: 37.9, lng: -4.5,
+      shortDesc: 'High-speed collision near C\u00f3rdoba. 46 dead, 120+ injured. Safety braking disabled by computer fault.',
+      fullDesc: 'On January 18, 2026, a high-speed rail collision between an Iryo and Renfe Alvia train near Adamuz, C\u00f3rdoba killed 46 people and injured over 120. A computer malfunction had disabled the safety automatic train protection (ATP) braking system. ADIF, Spain\'s rail authority, had been warned of track conditions in August 2025. While sabotage has not been confirmed, it is under active investigation in the context of documented Russian hybrid warfare operations in Europe, and the Spanish government has not publicly ruled out external interference with rail signaling systems.'
+    },
+
+    {
+      id: 'spain-toledo',
+      name: 'Toledo Rail Collision \u2014 68+ Dead',
+      date: 'October 2026',
+      years: [2026],
+      category: 'kinetic',
+      lat: 39.9, lng: -4.0,
+      shortDesc: 'Train halted by signal fault, struck by second high-speed train. 68+ dead. Interior minister: sabotage not excluded.',
+      fullDesc: 'In October 2026, a high-speed train near Toledo stopped due to a signal computer malfunction and was struck from behind by a second high-speed train, killing 68 or more people. Spain\'s interior minister explicitly stated that sabotage was not excluded from the investigation. The incident followed the Adamuz collision by nine months and both were examined in the context of Russian hybrid warfare operations, with particular attention to potential interference with rail signaling infrastructure and safety-critical computer systems.'
+    },
+
+    /* ── Power grid ──────────────────────────────────── */
+
+    {
+      id: 'blackout-spain',
+      name: 'Iberian Blackout \u2014 Spain (50M+ without power)',
+      date: 'Apr 28, 2025',
+      years: [2025],
+      category: 'kinetic',
+      lat: 40.4, lng: -3.7,
+      shortDesc: 'Worst European blackout in 20 years. Spain without power up to 16 hours.',
+      fullDesc: 'At 12:33 CEST on April 28, 2025, over 50 million people in Spain and Portugal lost power in the worst European blackout in 20 years, lasting up to 16 hours in parts of Spain. The event was caused by a voltage surge cascade across the Iberian grid. The Spanish government\'s June 2025 report officially ruled out a cyberattack, though attribution remains debated among energy security experts given the concurrent context of documented Russian hybrid warfare operations against European infrastructure.'
+    },
+
+    {
+      id: 'blackout-portugal',
+      name: 'Iberian Blackout \u2014 Portugal',
+      date: 'Apr 28, 2025',
+      years: [2025],
+      category: 'kinetic',
+      lat: 38.7, lng: -9.1,
+      shortDesc: 'Portugal without power up to 12 hours. Same Iberian grid cascade as Spain.',
+      fullDesc: 'Portugal experienced up to 12 hours of total power loss during the Iberian Blackout of April 28, 2025, affecting millions of people including Lisbon. The blackout cascaded from the Spanish grid via interconnected infrastructure. While officially attributed to a voltage surge, the event is analyzed in the broader context of documented Russian hybrid operations against European energy infrastructure. Portugal\'s energy regulator launched an independent review of grid resilience and cross-border interdependency vulnerabilities.'
+    },
+
+    /* ═══════════════════════════════════════════════════════════
+       CYBERATTACKS  (orange, category: 'cyber')
+    ═══════════════════════════════════════════════════════════ */
+
+    {
+      id: 'cyber-deutschebahn',
+      name: 'Deutsche Bahn Cyberattack \u2014 Germany',
+      date: 'February 2026',
+      years: [2026],
+      category: 'cyber',
+      lat: 52.5, lng: 13.4,
+      shortDesc: 'DDoS by pro-Russian NoName057(16) hit Deutsche Bahn booking and passenger displays. Millions affected.',
+      fullDesc: 'In February 2026, the pro-Russian hacker group NoName057(16) launched a sustained DDoS attack on Deutsche Bahn\'s booking systems and passenger information displays. Millions of railway passengers were affected as ticketing systems went offline across Germany. The attack was confirmed and attributed to the Russia-linked group. Deutsche Bahn, Europe\'s largest railway operator, is classified as critical national infrastructure in Germany, making the attack a significant escalation in Russian hybrid operations against European transportation.'
+    },
+
+    {
+      id: 'cyber-france-gru',
+      name: 'France Attributes Attacks to Russian GRU',
+      date: 'Apr 30, 2025',
+      years: [2025],
+      category: 'cyber',
+      lat: 48.9, lng: 2.3,
+      shortDesc: 'France officially attributed cyberattacks to Russian GRU. Gov agencies, companies, Olympics targeted.',
+      fullDesc: 'On April 30, 2025, France officially attributed a series of cyberattacks to Russia\'s military intelligence agency, the GRU. The attacks had targeted French government agencies, major companies, and the Paris 2024 Olympic Games infrastructure. The French foreign ministry summoned the Russian ambassador \u2014 a significant diplomatic escalation reflecting the severity of the confirmed intrusions. The attribution followed a comprehensive investigation by ANSSI, France\'s national cybersecurity agency.'
+    },
+
+    {
+      id: 'cyber-france-campaign',
+      name: 'Russia\'s Vast Cyber Campaign \u2014 12 Countries',
+      date: 'Jul 13, 2026',
+      years: [2026],
+      category: 'cyber',
+      lat: 48.7, lng: 2.6,
+      shortDesc: 'France reveals vast Russian cyber campaign covering a dozen European countries (sabotage + espionage).',
+      fullDesc: 'On July 13, 2026, France announced the uncovering of a vast Russian cyber and hybrid campaign targeting a dozen European countries, combining sabotage, espionage, and information operations. The disclosure was one of the largest attributed Russian intelligence operations ever made public by a European government, demonstrating the geographic breadth and operational sophistication of coordinated Russian hybrid warfare across the continent.'
+    },
+
+    {
+      id: 'cyber-creditmutuel',
+      name: 'Cr\u00e9dit Mutuel Ark\u00e9a \u2014 100M EUR Stolen',
+      date: 'Nov 5, 2026',
+      years: [2026],
+      category: 'cyber',
+      lat: 48.4, lng: -4.5,
+      shortDesc: '100M EUR stolen from French bank via fraudulent crypto transactions. Russia attributed.',
+      fullDesc: 'On November 5, 2026, Cr\u00e9dit Mutuel Ark\u00e9a (headquartered in Brest, France) was targeted in a cyberattack leading to the theft of approximately 100 million euros via fraudulent transactions converted to cryptocurrency. Some funds were subsequently recovered through international law enforcement cooperation. The attack was among the largest financial cyberattacks attributed to Russia-linked threat actors in Europe and occurred during the same November 2026 wave of coordinated Russian hybrid operations across the continent.'
+    }
+
+  ]; // end EVENTS (38 markers: 12 GPS, 11 fridge, 11 kinetic, 4 cyber)
+
+
+  /* ── Assassination / targeted killing events (purple) ────────── */
+  const MURDER_EVENTS = [
+
+    {
+      id: 'murder-litvinenko',
+      name: 'Alexander Litvinenko — Polonium Poisoning',
+      date: 'November 23, 2006',
+      years: [2006],
+      category: 'murder',
+      lat: 51.51, lng: -0.11,
+      shortDesc: 'Former FSB officer poisoned with Polonium-210 in London. Died Nov 23 2006. UK inquiry confirmed FSB/Putin approved.',
+      fullDesc: 'Alexander Litvinenko, a former FSB officer and Putin critic who had defected to the UK, was poisoned with Polonium-210 in London on November 1, 2006 and died on November 23. The radioactive isotope was slipped into his tea at a Mayfair hotel meeting with former KGB contacts Andrei Lugovoy and Dmitry Kovtun. A 2016 UK public inquiry concluded the murder was "probably approved" by FSB director Nikolai Patrushev and President Vladimir Putin. Russia refused extradition requests for the suspects.'
+    },
+
+    {
+      id: 'murder-markov',
+      name: 'Georgi Markov — Ricin Umbrella Assassination',
+      date: 'September 7, 1978',
+      years: [1978],
+      category: 'murder',
+      lat: 51.507, lng: -0.118,
+      shortDesc: 'Bulgarian dissident killed on Waterloo Bridge, London, with a ricin pellet fired from a modified umbrella. KGB-assisted.',
+      fullDesc: 'Georgi Markov, a Bulgarian dissident writer, was assassinated on Waterloo Bridge in London on September 7, 1978. A modified umbrella was used to inject a tiny platinum pellet filled with ricin into his leg while he waited for a bus. He died three days later. The operation was carried out by Bulgarian State Security (DS) with KGB technical assistance. The case became one of the most notorious Cold War assassinations on Western soil and established a template for future Russian-linked murders in Britain.'
+    },
+
+    {
+      id: 'murder-berezovsky',
+      name: 'Boris Berezovsky — Suspicious Death',
+      date: 'March 23, 2013',
+      years: [2013],
+      category: 'murder',
+      lat: 51.42, lng: -0.63,
+      shortDesc: 'Russian oligarch and Putin critic found dead at his UK estate. Inquest inconclusive. Widely suspected Russian state involvement.',
+      fullDesc: 'Boris Berezovsky, one of Russia\'s most prominent oligarchs and a fierce critic of Vladimir Putin, was found dead at his home in Ascot, Berkshire, on March 23, 2013. An inquest recorded an open verdict, unable to determine whether his death was suicide or murder. Berezovsky had been locked in a long legal battle with Roman Abramovich and had written to Putin requesting permission to return to Russia weeks before his death. British and Russian investigators reached opposite conclusions; many former intelligence officials and colleagues believe he was murdered.'
+    },
+
+    {
+      id: 'murder-skripal',
+      name: 'Sergei & Yulia Skripal — Novichok Attack',
+      date: 'March 4, 2018',
+      years: [2018],
+      category: 'murder',
+      lat: 51.07, lng: -1.80,
+      shortDesc: 'Former GRU double agent and daughter poisoned with Novichok nerve agent in Salisbury. Both survived. Dawn Sturgess died July 2018.',
+      fullDesc: 'Sergei Skripal, a former GRU colonel turned MI6 double agent, and his daughter Yulia were poisoned with the Novichok nerve agent in Salisbury, England on March 4, 2018. The attack was carried out by GRU officers Alexander Petrov and Ruslan Boshirov (identified as Col. Anatoly Chepiga and Dr. Alexander Mishkin by Bellingcat). Both Skripals survived. However, civilian Dawn Sturgess died on July 8, 2018 after her partner found the discarded perfume bottle used to carry the Novichok. The UK government expelled 23 Russian diplomats and attributed the attack directly to the GRU.'
+    },
+
+    {
+      id: 'murder-glushkov',
+      name: 'Nikolai Glushkov — Found Strangled, London',
+      date: 'March 12, 2018',
+      years: [2018],
+      category: 'murder',
+      lat: 51.49, lng: -0.27,
+      shortDesc: 'Former Aeroflot deputy director and Berezovsky associate found strangled at his home in London — same week as Skripal attack.',
+      fullDesc: 'Nikolai Glushkov, a former deputy director of Aeroflot and close associate of Boris Berezovsky, was found dead at his home in New Malden, southwest London, on March 12, 2018 — just eight days after the Novichok attack on the Skripals in Salisbury. Police initially treated the death as unexplained before a post-mortem examination revealed he had been strangled. Scotland Yard launched a murder investigation. Glushkov had been a vocal critic of the Kremlin and had faced criminal charges in Russia. No one was charged for his murder.'
+    },
+
+    {
+      id: 'murder-khangoshvili',
+      name: 'Zelimkhan Khangoshvili — Tiergarten Murder, Berlin',
+      date: 'August 23, 2019',
+      years: [2019],
+      category: 'murder',
+      lat: 52.516, lng: 13.36,
+      shortDesc: 'Georgian-Chechen dissident shot dead in Berlin\'s Tiergarten park. GRU agent Vadim Krasikov convicted 2021.',
+      fullDesc: 'Zelimkhan Khangoshvili, a Georgian-Chechen dissident who had survived assassination attempts in Georgia, was shot three times in the head at close range in Berlin\'s Tiergarten park on August 23, 2019. The assassin, Vadim Krasikov (alias Vadim Sokolov), was arrested at the scene. A German court convicted him of murder in December 2021 and sentenced him to life imprisonment. Krasikov was identified as a GRU officer. He was released in August 2024 as part of a major prisoner exchange between Russia and Western countries, confirming Russian state responsibility. Germany expelled two Russian diplomats following the verdict.'
+    },
+
+    {
+      id: 'murder-gebrev',
+      name: 'Emilian Gebrev — Poisoning Attempts, Bulgaria',
+      date: 'April–November 2015',
+      years: [2015],
+      category: 'murder',
+      lat: 42.70, lng: 23.32,
+      shortDesc: 'Bulgarian arms dealer survived three GRU poisoning attempts in Sofia in 2015. Bellingcat linked same GRU officers as Salisbury to the case.',
+      fullDesc: 'Emilian Gebrev, a Bulgarian arms dealer whose companies supplied weapons to Ukrainian forces, survived at least three poisoning attempts in Sofia, Bulgaria in April and May 2015, and again in November 2015. Investigative outlet Bellingcat and The Insider identified the same GRU unit (Unit 29155) responsible for the Salisbury Novichok attack as being behind the Gebrev poisoning attempts. The GRU officers used an unidentified organophosphate compound in the attacks. The case established that GRU Unit 29155 had been conducting assassination operations across Europe for years before the high-profile Skripal attack.'
+    },
+
+    {
+      id: 'murder-spain-pilot',
+      name: 'Russian Defector Helicopter Pilot Killed — Spain',
+      date: '2024',
+      years: [2024],
+      category: 'murder',
+      lat: 40.42, lng: -3.7,
+      shortDesc: 'Russian military helicopter pilot who defected to Ukraine killed in Spain in 2024. Russian operatives prime suspects.',
+      fullDesc: 'A Russian military helicopter pilot who had defected and cooperated with Ukrainian forces was killed in Spain in 2024. Western intelligence agencies considered Russian operatives the prime suspects. The killing was part of a documented escalation in Russian targeted assassinations of defectors and supporters of Ukraine across Europe following the 2022 full-scale invasion. The Spanish case demonstrated Russia\'s willingness to conduct lethal operations against military defectors even in NATO member states far from the front lines.'
+    },
+
+    {
+      id: 'murder-rheinmetall-plot',
+      name: 'Plot to Kill Rheinmetall CEO — Germany (Foiled)',
+      date: 'July 2024',
+      years: [2024],
+      category: 'murder',
+      lat: 51.22, lng: 6.78,
+      shortDesc: 'Russian plot to assassinate Armin Papperger, CEO of Rheinmetall arms manufacturer, uncovered by Western intelligence. Foiled.',
+      fullDesc: 'Western intelligence agencies uncovered a Russian plot in July 2024 to assassinate Armin Papperger, CEO of Rheinmetall, Germany\'s largest arms manufacturer and a key supplier of weapons and ammunition to Ukraine. The plot was foiled after German and allied intelligence services detected the operation. The German government stated it "would not be intimidated" but declined to comment on specifics. The targeting of a defence industry CEO was a significant escalation, demonstrating Russia\'s willingness to conduct lethal operations against private sector figures supporting Ukraine\'s war effort.'
+    },
+
+    {
+      id: 'murder-zelensky-plot-poland',
+      name: 'Plot to Assassinate Zelensky — Poland (Foiled)',
+      date: '2024',
+      years: [2024],
+      category: 'murder',
+      lat: 52.23, lng: 21.01,
+      shortDesc: 'Polish authorities arrested suspect in plot to assassinate Ukrainian President Zelensky. Russian intelligence linked.',
+      fullDesc: 'Polish authorities arrested a man in 2024 in connection with an alleged plot to assassinate Ukrainian President Volodymyr Zelensky, which was attributed to Russian intelligence services. The plot was uncovered as part of a broader pattern of Russian-directed sabotage and assassination operations being prosecuted across Europe by allied intelligence agencies. Poland, as a key transit country and major supporter of Ukraine, had become a frequent target for Russian hybrid warfare operations including assassination plots, arson, and sabotage against logistics infrastructure.'
+    },
+
+    {
+      id: 'murder-osechkin-france',
+      name: 'Russian Dissident Vladimir Osechkin — Surveillance, France',
+      date: 'April 2025',
+      years: [2025],
+      category: 'murder',
+      lat: 43.6, lng: 1.44,
+      shortDesc: 'Russian rights activist Osechkin\'s home in SW France staked out by Russian team in April 2025. Suspected assassination groundwork.',
+      fullDesc: 'In April 2025, a crew of Russian men conducted surveillance of the home of Vladimir Osechkin, a prominent Russian human rights activist and founder of the Gulagu.net platform, in southwestern France. Court documents seen by the Associated Press showed the team spent several hours taking videos and photos of his home and the surrounding area — assessed by investigators as groundwork for an assassination operation. Osechkin had been living in exile in France after exposing systematic torture in Russian prisons. French authorities intervened before any attack could be carried out.'
+    }
+
+  ];
+
+  /* Merge all events */
+  const ALL_EVENTS = EVENTS.concat(MURDER_EVENTS);
+
+  /* ── Events where a specific Russian agent/unit was named ──────
+     Sources: UK public inquiries, court verdicts, Bellingcat,
+     official government attributions, criminal convictions.
+  ─────────────────────────────────────────────────────────── */
+  const AGENT_IDENTIFIED_IDS = new Set([
+    'murder-litvinenko',       // Lugovoy & Kovtun (FSB) — UK public inquiry 2016
+    'murder-khangoshvili',     // Vadim Krasikov (GRU) — convicted Dec 2021
+    'murder-skripal',          // Petrov/Chepiga & Boshirov/Mishkin (GRU Unit 29155) — Bellingcat/UK govt
+    'murder-gebrev',           // Same GRU Unit 29155 officers as Salisbury — Bellingcat
+    'cyber-france-gru',        // GRU officially attributed by France, Apr 2025
+    'cyber-france-campaign',   // Russia officially attributed — French FM Jul 2026
+    'cable-nov2024',           // Yi Peng 3 (vessel + Russian crew) — detained/investigated
+    'drone-poland-2025',       // Russian military drones — NATO confirmed
+  ]);
+
+
+  /* =================================================================
+     MAP INITIALIZATION — runs after DOM is ready
+  ================================================================= */
+  document.addEventListener('DOMContentLoaded', function () {
+
+    /* ── Leaflet map & tile layer ─────────────────────────────── */
+    var map = L.map('map', { zoomControl: true }).setView([54, 15], 4);
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom',
+      maxZoom: 18
+    }).addTo(map);
+
+    /* Internal tracker: [{leafletMarker, event}] */
+    var markers = [];
+
+    /* ── Co-location offset ──────────────────────────────────────
+       Events sharing the same 1-dp lat/lng grid cell (~11 km) are
+       spread in a circle: radius 0.15°, 60° per duplicate.
+       The event data is already pre-spread for the main clusters
+       (Paris, Berlin, Madrid), so this algorithm acts as a safety net.
+    ─────────────────────────────────────────────────────────── */
+    function computeOffsets(events) {
+      var buckets = {};
+      events.forEach(function (ev) {
+        var key = ev.lat.toFixed(1) + '_' + ev.lng.toFixed(1);
+        if (!buckets[key]) buckets[key] = [];
+        buckets[key].push(ev.id);
+      });
+
+      var offsetMap = {};
+      var OFFSET = 0.15; // degrees (~11-17 km at European latitudes)
+
+      events.forEach(function (ev) {
+        var key = ev.lat.toFixed(1) + '_' + ev.lng.toFixed(1);
+        var bucket = buckets[key];
+        var n = bucket.indexOf(ev.id);
+
+        if (bucket.length === 1) {
+          offsetMap[ev.id] = { lat: ev.lat, lng: ev.lng };
+        } else {
+          var angle = (n * 60) * (Math.PI / 180);
+          offsetMap[ev.id] = {
+            lat: ev.lat + OFFSET * Math.sin(angle),
+            lng: ev.lng + OFFSET * Math.cos(angle)
+          };
+        }
+      });
+
+      return offsetMap;
+    }
+
+    /* ── Build all circle markers ─────────────────────────────── */
+    function buildMarkers() {
+      var offsetMap = computeOffsets(ALL_EVENTS);
+
+      ALL_EVENTS.forEach(function (event) {
+        var pos = offsetMap[event.id];
+
+        var marker = L.circleMarker([pos.lat, pos.lng], {
+          radius:      10,
+          fillColor:   CATEGORY_COLORS[event.category],
+          color:       '#fff',   // white stroke for contrast on all tile backgrounds
+          weight:      2,
+          opacity:     1,
+          fillOpacity: 0.85
+        });
+
+        /* Tooltip: name (bold) + date on hover */
+        marker.bindTooltip(
+          '<strong>' + event.name + '</strong><br>' + event.date,
+          { permanent: false, sticky: true, direction: 'top', offset: [0, -10] }
+        );
+
+        /* Click: open info panel; stop propagation so the map-click
+           listener does not immediately close it again */
+        marker.on('click', (function (ev) {
+          return function (e) {
+            L.DomEvent.stopPropagation(e);
+            showInfoPanel(ev);
+          };
+        }(event)));
+
+        marker.addTo(map);
+        markers.push({ leafletMarker: marker, event: event });
+      });
+    }
+
+    /* ── Info panel ───────────────────────────────────────────── */
+    var panel      = document.getElementById('info-panel');
+    var infoContent = document.getElementById('info-content');
+
+    function showInfoPanel(event) {
+      infoContent.innerHTML =
+        '<h2>' + event.name + '</h2>' +
+        '<span class="badge badge-' + event.category + '">' + CATEGORY_LABELS[event.category] + '</span>' +
+        '<p class="event-date"><strong>Date:</strong> ' + event.date + '</p>' +
+        '<p class="event-desc">' + event.fullDesc + '</p>';
+      panel.classList.remove('hidden');
+    }
+
+    function closeInfoPanel() {
+      panel.classList.add('hidden');
+    }
+
+    document.getElementById('close-panel').addEventListener('click', closeInfoPanel);
+
+    /* Clicking the map background closes the panel */
+    map.on('click', closeInfoPanel);
+
+    /* ── Year filter ──────────────────────────────────────────────
+       Checkboxes: 2024, 2025, 2026 (all checked by default).
+
+       IMPORTANT: Events with years[] that include pre-2024 dates
+       (e.g. gps-kaliningrad = [2022,2023,2024,2025]) still show
+       correctly because the filter checks whether ANY year in the
+       event's years[] matches the currently-checked set.
+       Unchecking all three boxes hides every marker.
+    ─────────────────────────────────────────────────────────── */
+    function applyFilter() {
+      /* Year bucket */
+      var checkedYears = new Set();
+      document.querySelectorAll('.year-cb:checked').forEach(function(cb){ checkedYears.add(cb.value); });
+
+      /* Category */
+      var checkedCats = new Set();
+      document.querySelectorAll('.cat-cb:checked').forEach(function(cb){ checkedCats.add(cb.value); });
+
+      /* Agent-identified toggle */
+      var agentOnly = document.getElementById('agent-cb').checked;
+
+      markers.forEach(function (m) {
+        var ev = m.event;
+
+        /* Year match */
+        var yearOk = ev.years.some(function(y){
+          return y <= 2023 ? checkedYears.has('historic') : checkedYears.has(String(y));
+        });
+
+        /* Category match */
+        var catOk = checkedCats.has(ev.category);
+
+        /* Agent filter */
+        var agentOk = !agentOnly || AGENT_IDENTIFIED_IDS.has(ev.id);
+
+        if (yearOk && catOk && agentOk) {
+          m.leafletMarker.addTo(map);
+        } else {
+          m.leafletMarker.remove();
+        }
+      });
+    }
+
+    /* ── Legend control (bottom-right) ───────────────────────── */
+    var legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+      var div = L.DomUtil.create('div', 'map-legend');
+      div.innerHTML = '<strong>Legend</strong>';
+      Object.keys(CATEGORY_LABELS).forEach(function (key) {
+        div.innerHTML +=
+          '<div class="legend-item">' +
+          '<span class="legend-dot" style="background:' + CATEGORY_COLORS[key] + '"></span>' +
+          CATEGORY_LABELS[key] +
+          '</div>';
+      });
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    legend.addTo(map);
+
+    /* ── Title control (top-left) ─────────────────────────────── */
+    var titleCtrl = L.control({ position: 'topleft' });
+    titleCtrl.onAdd = function () {
+      var div = L.DomUtil.create('div', 'map-title');
+      div.innerHTML =
+        '<div class="map-title-h1">Russian Hybrid Warfare Events in Europe</div>' +
+        '<div class="map-title-sub">Confirmed and suspected events, 2022\u20132026</div>';
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    titleCtrl.addTo(map);
+
+    /* ── Year filter control (top-right) ─────────────────────── */
+    var filterCtrl = L.control({ position: 'topright' });
+    filterCtrl.onAdd = function () {
+      var div = L.DomUtil.create('div', 'map-filter');
+      div.innerHTML =
+        '<div class="filter-title">Filter by year</div>' +
+        '<label class="filter-label"><input type="checkbox" class="year-cb" value="historic" checked> Historic (&le;2023)</label>' +
+        '<label class="filter-label"><input type="checkbox" class="year-cb" value="2024" checked> 2024</label>' +
+        '<label class="filter-label"><input type="checkbox" class="year-cb" value="2025" checked> 2025</label>' +
+        '<label class="filter-label"><input type="checkbox" class="year-cb" value="2026" checked> 2026</label>' +
+        '<hr style="margin:0.55rem 0;border:none;border-top:1px solid #ddd;">' +
+        '<div class="filter-title">Category</div>' +
+        '<label class="filter-label"><input type="checkbox" class="cat-cb" value="kinetic" checked> <span style="color:#e74c3c;font-weight:700;">&#9679;</span> Kinetic / Physical</label>' +
+        '<label class="filter-label"><input type="checkbox" class="cat-cb" value="cyber" checked> <span style="color:#e67e22;font-weight:700;">&#9679;</span> Cyberattack</label>' +
+        '<label class="filter-label"><input type="checkbox" class="cat-cb" value="gps" checked> <span style="color:#d4ac0d;font-weight:700;">&#9679;</span> GPS / Aviation</label>' +
+        '<label class="filter-label"><input type="checkbox" class="cat-cb" value="fridge" checked> <span style="color:#3498db;font-weight:700;">&#9679;</span> Fridge / Freezer</label>' +
+        '<label class="filter-label"><input type="checkbox" class="cat-cb" value="murder" checked> <span style="color:#8e44ad;font-weight:700;">&#9679;</span> Assassination</label>' +
+        '<hr style="margin:0.55rem 0;border:none;border-top:1px solid #ddd;">' +
+        '<div class="filter-title">Intelligence</div>' +
+        '<label class="filter-label" title="Show only events where a Russian agent, unit, or vessel was officially named or convicted"><input type="checkbox" id="agent-cb"> &#128373; Agent identified</label>';
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      div.querySelectorAll('input').forEach(function(cb){
+        cb.addEventListener('change', applyFilter);
+      });
+      return div;
+    };
+    filterCtrl.addTo(map);
+
+    /* ── Wire everything up ───────────────────────────────────── */
+    buildMarkers();
+
+    /* Bind filter checkboxes (the control is now in the DOM) */
+    var cbs = document.querySelectorAll('.year-cb');
+    for (var i = 0; i < cbs.length; i++) {
+      cbs[i].addEventListener('change', applyFilter);
+    }
+
+    /* Initial filter pass — all checked, so all 38 markers show */
+    applyFilter();
+
+  }); // end DOMContentLoaded
+  </script>
+</body>
+</html>
